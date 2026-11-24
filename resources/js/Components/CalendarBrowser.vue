@@ -5,6 +5,7 @@ import MonthCalendar from '@/Components/MonthCalendar.vue';
 import { THAI_MONTHS } from '@/utils/thaiDate';
 
 // ปฏิทินพร้อมปุ่มเลื่อนเดือน โหลดเหตุการณ์ของเดือนอื่นจาก /calendar/events
+// เปลี่ยนเดือนแบบ fade: สลับตารางเมื่อโหลดข้อมูลเดือนใหม่เสร็จ (ไม่กะพริบเป็นเดือนว่าง)
 const props = defineProps({
     initialEvents: { type: Object, default: () => ({}) },
     legend: { type: Array, default: () => [] }, // [{ label, cls }]
@@ -13,17 +14,25 @@ const props = defineProps({
 const now = new Date();
 const year = ref(now.getFullYear());
 const month = ref(now.getMonth());
-const events = ref(props.initialEvents);
+const shown = ref({ year: year.value, month: month.value, events: props.initialEvents });
 const loading = ref(false);
 const title = computed(() => `${THAI_MONTHS[month.value]} ${year.value + 543}`);
 
+let seq = 0; // กดเลื่อนเร็ว ๆ ใช้ผลของคำขอล่าสุดเท่านั้น
 async function load() {
+    const id = ++seq;
+    const y = year.value;
+    const m = month.value;
     loading.value = true;
+    let events = {};
     try {
-        const res = await fetch(`/calendar/events?year=${year.value}&month=${month.value + 1}`, { headers: { Accept: 'application/json' } });
-        if (res.ok) events.value = await res.json();
+        const res = await fetch(`/calendar/events?year=${y}&month=${m + 1}`, { headers: { Accept: 'application/json' } });
+        if (res.ok) events = await res.json();
     } finally {
-        loading.value = false;
+        if (id === seq) {
+            shown.value = { year: y, month: m, events };
+            loading.value = false;
+        }
     }
 }
 const shift = (delta) => {
@@ -54,6 +63,14 @@ const goToday = () => {
             </div>
         </div>
         <slot name="actions" />
-        <MonthCalendar :year="year" :month="month" :events="events" />
+        <Transition
+            mode="out-in"
+            enter-active-class="transition-opacity duration-200 ease-out motion-reduce:transition-none"
+            leave-active-class="transition-opacity duration-150 ease-in motion-reduce:transition-none"
+            enter-from-class="opacity-0"
+            leave-to-class="opacity-0"
+        >
+            <MonthCalendar :key="`${shown.year}-${shown.month}`" :year="shown.year" :month="shown.month" :events="shown.events" />
+        </Transition>
     </div>
 </template>

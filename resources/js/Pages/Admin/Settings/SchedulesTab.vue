@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 import Modal from '@/Components/Modal.vue';
@@ -9,6 +9,7 @@ import { thaiDate } from '@/utils/thaiDate';
 const props = defineProps({
     schedules: Array,
     specialDays: Array,
+    flex: { type: Object, default: () => ({ latest_start: '09:00', min_hours: 7, people: [] }) },
 });
 
 const appliesLabel = { weekday: 'จ.–ศ.', holiday: 'ส.–อา. / วันหยุด', special: 'กำหนดรายวัน' };
@@ -38,6 +39,14 @@ const save = () => {
 
 const dayForm = useForm({ date: '', schedule_id: props.schedules.find((s) => s.applies_to === 'special')?.id ?? '', note: '' });
 const addDay = () => dayForm.post('/admin/settings/special-days', { preserveScroll: true, onSuccess: () => dayForm.reset('date', 'note') });
+// เวลายืดหยุ่น: นับได้ถึง เข้าไม่เกิน + ชั่วโมงขั้นต่ำ + พัก 1 ชม.
+const flexForm = useForm({ latest_start: props.flex.latest_start, min_hours: props.flex.min_hours });
+const saveFlex = () => flexForm.put('/admin/settings/flex', { preserveScroll: true });
+const flexEnd = computed(() => {
+    const [h, m] = (flexForm.latest_start || '09:00').split(':').map(Number);
+    const t = h * 60 + m + Math.round(Number(flexForm.min_hours || 0) * 60) + 60;
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+});
 const removeDay = (d) => confirm(`ยกเลิกวันพิเศษ ${thaiDate(d.date)}?`) && router.delete(`/admin/settings/special-days/${d.id}`, { preserveScroll: true });
 </script>
 
@@ -114,7 +123,33 @@ const removeDay = (d) => confirm(`ยกเลิกวันพิเศษ ${t
                 </div>
             </div>
         </section>
-    </div>
+
+        <!-- เวลายืดหยุ่น: ใช้กับคนที่ admin ติ๊กในหน้าสมาชิก · OT ไม่ยืดหยุ่น -->
+        <section class="card max-w-3xl space-y-4 p-5">
+            <div>
+                <h2 class="text-lg font-bold">เวลายืดหยุ่น</h2>
+                <p class="text-sm text-muted">เฉพาะคนที่ติ๊ก "เวลายืดหยุ่น" ในหน้าสมาชิก · นับชั่วโมงจริงตั้งแต่ 08:30 (ตามกฎหมาย) หักพัก 12:00–13:00 · OT ใช้รูปแบบเดิม ไม่ยืดหยุ่น</p>
+            </div>
+            <form class="flex flex-wrap items-end gap-3" @submit.prevent="saveFlex">
+                <div>
+                    <label for="fx-latest" class="label">เข้าไม่เกิน</label>
+                    <input id="fx-latest" v-model="flexForm.latest_start" type="time" class="input w-36" required>
+                    <p v-if="flexForm.errors.latest_start" class="field-error">{{ flexForm.errors.latest_start }}</p>
+                </div>
+                <div>
+                    <label for="fx-hours" class="label">ชั่วโมงสุทธิขั้นต่ำ / วัน</label>
+                    <input id="fx-hours" v-model="flexForm.min_hours" type="number" min="1" max="12" step="0.5" class="input w-36" required>
+                    <p v-if="flexForm.errors.min_hours" class="field-error">{{ flexForm.errors.min_hours }}</p>
+                </div>
+                <button type="submit" class="btn-primary" :disabled="flexForm.processing">บันทึก</button>
+            </form>
+            <ul class="space-y-1 rounded-xl bg-soft px-4 py-3 text-sm">
+                <li>เข้าหลัง {{ flexForm.latest_start }} น. (เกินผ่อนผัน) = <b>สาย</b> นับนาทีจาก {{ flexForm.latest_start }}</li>
+                <li>ชั่วโมงสุทธิไม่ถึง {{ flexForm.min_hours }} ชม. = <b>ชม. ไม่ครบ</b> (นับเป็นออกก่อนในรายงาน)</li>
+                <li>นับชั่วโมงได้ถึง {{ flexEnd }} น. · วันที่ลาครึ่งวันต้องการครึ่งหนึ่ง ({{ flexForm.min_hours / 2 }} ชม.)</li>
+            </ul>
+            <p class="text-sm"><span class="text-muted">ใช้อยู่ {{ flex.people.length }} คน:</span> {{ flex.people.length ? flex.people.join(', ') : 'ยังไม่มี' }}</p>
+        </section>
 
     <Modal v-if="open" :title="form.id ? `แก้ไข ${form.name}` : 'เพิ่มรูปแบบเวลา'" @close="open = false">
         <form id="sch-form" class="grid gap-4 sm:grid-cols-4" @submit.prevent="save">
@@ -157,4 +192,5 @@ const removeDay = (d) => confirm(`ยกเลิกวันพิเศษ ${t
             <button type="submit" form="sch-form" class="btn-primary" :disabled="form.processing">บันทึก</button>
         </template>
     </Modal>
+    </div>
 </template>

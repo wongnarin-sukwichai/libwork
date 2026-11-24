@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LeaveRecord;
 use App\Models\LeaveType;
 use App\Models\User;
+use App\Support\AttendanceService;
 use App\Support\FiscalYear;
 use App\Support\LeaveService;
 use App\Support\MonthClose;
@@ -28,9 +29,7 @@ class LeaveController extends Controller
         $user = $userId ? User::query()->find($userId) : null;
 
         return Inertia::render('Staff/Leaves', [
-            'people' => User::query()->where('is_active', true)->with('department:id,name')->orderBy('first_name')
-                ->get(['id', 'prefix', 'first_name', 'last_name', 'employee_code', 'department_id'])
-                ->map(fn ($u) => ['id' => $u->id, 'name' => $u->full_name, 'code' => $u->employee_code, 'department' => $u->department?->name]),
+            'people' => $this->people(),
             'types' => LeaveType::query()->where('is_active', true)->ordered()->get(['id', 'name', 'category', 'counts_quota', 'allow_half_day']),
             'selected' => $user ? [
                 'id' => $user->id,
@@ -52,6 +51,26 @@ class LeaveController extends Controller
         return response()->json(['days' => LeaveService::countDays($data['start_date'], $data['end_date'], $data['half_day'] ?? null)]);
     }
 
+    /** ข้อมูลสำหรับ modal บันทึกลาในหน้ารายวัน: รายชื่อ, ประเภทลา, ยอดคงเหลือของคนที่เลือก */
+    public function options(Request $request): JsonResponse
+    {
+        $user = ($id = $request->integer('user')) ? User::query()->find($id) : null;
+
+        return response()->json([
+            'people' => $request->boolean('people') ? $this->people() : null,
+            'types' => LeaveType::query()->where('is_active', true)->ordered()->get(['id', 'name', 'category', 'counts_quota', 'allow_half_day']),
+            'summary' => $user ? LeaveService::summary($user, FiscalYear::of($request->date('date') ?? now())) : null,
+        ]);
+    }
+
+    private function people(): array
+    {
+        return User::query()->where('is_active', true)->with('department:id,name')->orderBy('first_name')
+            ->get(['id', 'prefix', 'first_name', 'last_name', 'employee_code', 'department_id'])
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->full_name, 'code' => $u->employee_code, 'department' => $u->department?->name, 'active' => true])
+            ->all();
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
@@ -60,8 +79,11 @@ class LeaveController extends Controller
             $data['attachment'] = $request->file('attachment')->store('leave-attachments', 'local');
         }
         $record = LeaveRecord::query()->create($data);
+        AttendanceService::recalculateRange($record->user_id, $record->start_date->toDateString(), $record->end_date->toDateString());
 
-        return redirect('/staff/leaves?user='.$record->user_id)->with('success', 'บันทึกวันลาแล้ว');
+        // บันทึกจากหน้ารายวัน (modal) กลับหน้าเดิม
+        return ($request->boolean('stay') ? back() : redirect('/staff/leaves?user='.$record->user_id))
+            ->with('success', 'บันทึก'.$record->leaveType->name.' ของ '.$record->user->full_name.' แล้ว');
     }
 
     public function update(Request $request, LeaveRecord $leave): RedirectResponse
@@ -71,7 +93,10 @@ class LeaveController extends Controller
         if ($request->hasFile('attachment')) {
             $data['attachment'] = $request->file('attachment')->store('leave-attachments', 'local');
         }
+        $old = [$leave->user_id, $leave->start_date->toDateString(), $leave->end_date->toDateString()];
         $leave->update($data);
+        AttendanceService::recalculateRange(...$old);
+        AttendanceService::recalculateRange($leave->user_id, $leave->start_date->toDateString(), $leave->end_date->toDateString());
 
         return back()->with('success', 'แก้ไขวันลาแล้ว');
     }
@@ -83,6 +108,7 @@ class LeaveController extends Controller
         }
         $leave->update(['deleted_by' => $request->user()->id]);
         $leave->delete();
+        AttendanceService::recalculateRange($leave->user_id, $leave->start_date->toDateString(), $leave->end_date->toDateString());
 
         return back()->with('success', 'ลบรายการวันลาแล้ว');
     }

@@ -3,10 +3,13 @@ import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 import Modal from '@/Components/Modal.vue';
+import FadeSwap from '@/Components/FadeSwap.vue';
 import StatusPill from '@/Components/StatusPill.vue';
 import EditAttendance from './EditAttendance.vue';
+import LeaveModal from '@/Components/LeaveModal.vue';
 import { thaiDate, isoDate } from '@/utils/thaiDate';
 import { url } from '@/utils/url';
+import { STATUS_TONES } from '@/utils/statusTones';
 
 // หน้าแรก HR: ตารางลงเวลาประจำวัน จัดกลุ่มตามกลุ่มงาน (หน้า 6 ใน mockup)
 const props = defineProps({ report: Object, monthClose: Object });
@@ -19,16 +22,26 @@ const shiftDay = (delta) => {
 };
 const isToday = computed(() => props.report.date === isoDate());
 
-const stats = computed(() => [
+// สีการ์ด = สี badge ของสถานะเดียวกันในตาราง (utils/statusTones.js)
+// แท็บ OT แสดงเฉพาะคนที่มีรายการ OT จึงเหลือ 3 การ์ดที่มีความหมาย (สาย/ลา/ไม่ได้ลงเวลา เป็น 0 เสมอ)
+const stats = computed(() => props.report.type === 'ot' ? [
+    { label: 'มาปฏิบัติงาน (OT)', value: props.report.stats.present, cls: STATUS_TONES.ot },
+    { label: 'ล่วงเวลาพิเศษ', value: props.report.stats.special, cls: STATUS_TONES.special },
+    { label: 'ไม่ได้ลงเวลาออก', value: props.report.stats.no_out, cls: STATUS_TONES.bad },
+] : [
     { label: 'บุคลากร', value: props.report.stats.total, cls: 'border border-line bg-white text-ink' },
-    { label: props.report.type === 'ot' ? 'ลง OT' : 'มาปฏิบัติงาน', value: props.report.stats.present, cls: 'bg-sun-500 text-black' },
-    { label: 'สาย / ออกก่อน', value: props.report.stats.late, cls: 'bg-orange-50 text-orange-900' },
-    { label: 'ลา / ไปราชการ', value: props.report.stats.leave, cls: 'bg-soft-2 text-navy-700' },
-    { label: 'ยังไม่ลงเวลาออก', value: props.report.stats.no_out, cls: 'bg-red-50 text-red-900' },
-    { label: 'ไม่ได้ลงเวลา', value: props.report.stats.absent, cls: 'bg-navy-700 text-white' },
+    { label: 'มาปฏิบัติงาน', value: props.report.stats.present, cls: STATUS_TONES.ok },
+    { label: 'สาย / ออกก่อน', value: props.report.stats.late, cls: STATUS_TONES.late },
+    { label: 'ลา', value: props.report.stats.leave, cls: STATUS_TONES.leave },
+    { label: 'ไปราชการ', value: props.report.stats.duty, cls: STATUS_TONES.duty },
+    { label: 'ไม่ได้ลงเวลาออก', value: props.report.stats.no_out, cls: STATUS_TONES.bad },
+    { label: 'ไม่ได้ลงเวลา', value: props.report.stats.absent, cls: STATUS_TONES.absent },
 ]);
 
 const editing = ref(null);
+// บันทึกลา: { person } จากแถว หรือ {} จากปุ่มบนหัว (เลือกคนเอง) · วันที่ตั้งต้น = วันที่กำลังดู
+const leaving = ref(null);
+const canLeave = (r) => props.report.type !== 'ot' && !['leave', 'duty'].includes(r.tone);
 const photo = ref(null);
 const photoUrl = (row, kind) => url(`/photos/attendance/${row.attendance_id}/${kind}`);
 let n = 0;
@@ -42,22 +55,26 @@ const numbered = computed(() => {
     <Head title="รายงานประจำวัน" />
     <div class="space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3.5 rounded-[20px] bg-navy-700 px-6 py-5 text-white shadow-card">
-            <div>
+            <div class="flex items-center gap-4">
+                <img :src="url('/img/logos/library.png')" alt="MSU Library" class="h-14 w-auto shrink-0">
+                <div class="border-l border-white/25 pl-4">
                 <div class="text-sm text-navy-300">รายงานประจำวัน<span v-if="report.schedule?.special" class="ml-2 rounded-md bg-violet-600 px-2 py-0.5 text-xs font-bold text-white">{{ report.schedule.name }}</span></div>
                 <h1 class="text-[26px] font-bold">{{ thaiDate(report.date, { weekday: true }) }}</h1>
+                </div>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <button type="button" class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/12" aria-label="วันก่อนหน้า" @click="shiftDay(-1)"><Icon name="chevron-left" :size="18" /></button>
                 <label for="dt" class="sr-only">วันที่</label>
-                <input id="dt" type="date" :value="report.date" :max="isoDate()" class="h-11 rounded-xl border-0 px-3 text-[15px] text-ink" @change="go({ date: $event.target.value })">
+                <input id="dt" type="date" :value="report.date" :max="isoDate()" class="h-11 rounded-xl border-0 bg-white/12 px-3 text-[15px] text-white scheme-dark" @change="go({ date: $event.target.value })">
                 <button type="button" class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/12 disabled:opacity-40" aria-label="วันถัดไป" :disabled="isToday" @click="shiftDay(1)"><Icon name="chevron-right" :size="18" /></button>
                 <button v-if="!isToday" type="button" class="h-11 rounded-xl bg-white/12 px-3 text-sm" @click="go({ date: isoDate() })">วันนี้</button>
-                <a :href="url(`/staff/reports/daily.pdf?date=${report.date}&type=${report.type}`)" target="_blank" class="btn-primary"><Icon name="file-pen" :size="18" /> PDF ส่งหัวหน้าสำนัก</a>
-                <a :href="url(`/staff/reports/daily.xlsx?date=${report.date}&type=${report.type}`)" class="btn bg-white text-ink hover:bg-soft">Excel</a>
+                <button type="button" class="btn bg-white text-ink hover:bg-soft" @click="leaving = {}"><Icon name="plus" :size="18" /> บันทึกลา</button>
+                <a :href="url(`/staff/reports/daily.pdf?date=${report.date}&type=${report.type}`)" target="_blank" class="btn-primary" title="PDF ส่งหัวหน้าสำนัก"><Icon name="file-pen" :size="18" /> PDF</a>
+                <a :href="url(`/staff/reports/daily.xlsx?date=${report.date}&type=${report.type}`)" class="btn bg-excel text-white hover:bg-excel-dark">Excel</a>
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+        <div class="grid gap-2.5" :class="report.type === 'ot' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4 xl:grid-cols-7'">
             <div v-for="s in stats" :key="s.label" class="rounded-[14px] px-3.5 py-3 shadow-card" :class="s.cls">
                 <div class="text-[13px]">{{ s.label }}</div>
                 <div class="text-2xl font-bold">{{ s.value }}</div>
@@ -82,7 +99,9 @@ const numbered = computed(() => {
             </Link>
         </div>
 
-        <section class="card overflow-hidden">
+        <!-- เปลี่ยนแท็บ ปกติ/OT หรือวันที่ ตารางจะ fade -->
+        <FadeSwap>
+        <section :key="`${report.type}-${report.date}`" class="card overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[900px] border-collapse text-sm">
                     <thead>
@@ -91,7 +110,7 @@ const numbered = computed(() => {
                             <th class="px-2.5 py-3 font-semibold">ชื่อ-สกุล</th>
                             <th class="px-2.5 py-3 font-semibold">เข้า</th>
                             <th class="px-2.5 py-3 font-semibold">ออก</th>
-                            <th class="px-2.5 py-3 font-semibold">ชม.</th>
+                            <th class="px-2.5 py-3 font-semibold">ชม. สะสม</th>
                             <th class="px-2.5 py-3 font-semibold">สถานะ</th>
                             <th class="px-2.5 py-3 font-semibold">หมายเหตุ</th>
                             <th class="px-2.5 py-3"><span class="sr-only">จัดการ</span></th>
@@ -135,17 +154,22 @@ const numbered = computed(() => {
                                 <span v-if="r.offline" class="ml-1 rounded bg-sun-100 px-1.5 text-xs text-sun-800">ออฟไลน์</span>
                             </td>
                             <td class="px-2.5 py-2 text-right">
-                                <button type="button" class="btn-outline h-8 px-3 text-[13px]" @click="editing = r">{{ r.attendance_id ? 'แก้ไข' : 'เพิ่มเวลา' }}</button>
+                                <div class="flex justify-end gap-1.5">
+                                    <button v-if="canLeave(r)" type="button" class="btn-ghost h-8 px-2.5 text-[13px] text-navy-700" @click="leaving = { person: { id: r.user_id, name: r.name } }">บันทึกลา</button>
+                                    <button type="button" class="btn-outline h-8 px-3 text-[13px]" @click="editing = r">{{ r.attendance_id ? 'แก้ไข' : 'เพิ่มเวลา' }}</button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </section>
+        </FadeSwap>
         <p class="text-[13px] text-muted">จัดกลุ่มตามกลุ่มงาน ณ วันที่เลือก · เรียงตามลำดับในโครงสร้างหน่วยงาน · กดรูปเพื่อดูรูปเต็ม</p>
     </div>
 
     <EditAttendance v-if="editing" :row="editing" :date="report.date" :type="report.type" @close="editing = null" />
+    <LeaveModal v-if="leaving" :date="report.date" :person="leaving.person" @close="leaving = null" />
     <Modal v-if="photo" :title="photo.title" width="max-w-md" @close="photo = null">
         <img :src="photo.src" alt="" class="w-full rounded-xl">
     </Modal>

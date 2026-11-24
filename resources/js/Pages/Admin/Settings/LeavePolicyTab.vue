@@ -90,7 +90,6 @@ const saveType = () => {
                 </table>
             </div>
         </form>
-    </div>
 
     <Modal v-if="typeModal" :title="typeForm.id ? `แก้ไข ${typeForm.name}` : 'เพิ่มประเภทลา'" width="max-w-lg" @close="typeModal = false">
         <form id="lt" class="space-y-4" @submit.prevent="saveType">
@@ -106,4 +105,5 @@ const saveType = () => {
             <button type="submit" form="lt" class="btn-primary" :disabled="typeForm.processing">บันทึก</button>
         </template>
     </Modal>
+    </div>
 </template>

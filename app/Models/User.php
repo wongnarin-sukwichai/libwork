@@ -26,7 +26,7 @@ class User extends Authenticatable
     protected $fillable = [
         'employee_code', 'prefix', 'first_name', 'last_name', 'email', 'google_id', 'avatar', 'password',
         'role', 'employment_type_id', 'department_id', 'position', 'start_date', 'end_date',
-        'ot_eligible', 'mobile_checkin', 'is_active', 'last_login_at', 'legacy_id',
+        'ot_eligible', 'mobile_checkin', 'flex_time', 'is_active', 'last_login_at', 'legacy_id',
     ];
 
     protected $hidden = ['password', 'remember_token', 'google_id'];
@@ -40,6 +40,7 @@ class User extends Authenticatable
             'start_date' => 'date',
             'end_date' => 'date',
             'ot_eligible' => 'boolean',
+            'flex_time' => 'boolean',
             'mobile_checkin' => 'boolean',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',

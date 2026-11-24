@@ -2,22 +2,17 @@
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
+import PersonPicker from '@/Components/PersonPicker.vue';
 import { thaiDate } from '@/utils/thaiDate';
 import { url } from '@/utils/url';
 
-// บันทึกวันลา (หน้า 7): HR บันทึกโดยตรง ไม่มีขั้นตอนอนุมัติ
+// ประวัติวันลา (เดิม "บันทึกวันลา" หน้า 7): ดู/แก้/ลบ + บันทึกล่วงหน้า · การบันทึกประจำวันทำที่หน้ารายวัน (LeaveModal)
 const props = defineProps({
     people: Array,
     types: Array,
     selected: { type: Object, default: null },
     fiscalYear: Number,
     recent: Array,
-});
-
-const search = ref('');
-const filtered = computed(() => {
-    const q = search.value.trim();
-    return q ? props.people.filter((p) => p.name.includes(q) || (p.code ?? '').includes(q)) : props.people;
 });
 
 const editing = ref(null);
@@ -91,11 +86,11 @@ const typeClass = (c) => (c === 'duty' ? 'bg-sun-100 text-sun-800' : 'bg-soft-2 
 </script>
 
 <template>
-    <Head title="บันทึกวันลา" />
+    <Head title="ประวัติวันลา" />
     <div class="space-y-5">
         <div>
-            <h1 class="text-[26px] font-bold">บันทึกวันลา</h1>
-            <p class="text-[15px] text-muted">HR บันทึกลงระบบโดยตรง ไม่มีขั้นตอนอนุมัติ · ปีงบประมาณ {{ fiscalYear }}</p>
+            <h1 class="text-[26px] font-bold">ประวัติวันลา</h1>
+            <p class="text-[15px] text-muted">ดู แก้ไข ลบ และบันทึกวันลาล่วงหน้า · บันทึกลาประจำวันทำได้จากหน้ารายวัน · ไม่มีขั้นตอนอนุมัติ · ปีงบประมาณ {{ fiscalYear }}</p>
         </div>
 
         <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
@@ -106,13 +101,8 @@ const typeClass = (c) => (c === 'duty' ? 'bg-sun-100 text-sun-800' : 'bg-soft-2 
                 </div>
                 <div>
                     <label for="who" class="label">บุคลากร</label>
-                    <div class="flex gap-2">
-                        <input v-model="search" class="input max-w-[180px]" placeholder="ค้นชื่อ/รหัส" aria-label="ค้นหาบุคลากร">
-                        <select id="who" v-model="form.user_id" class="input" required :disabled="!!editing">
-                            <option value="" disabled>เลือกบุคลากร ({{ filtered.length }})</option>
-                            <option v-for="p in filtered" :key="p.id" :value="p.id">{{ p.name }}{{ p.code ? ` (${p.code})` : '' }} · {{ p.department ?? '—' }}</option>
-                        </select>
-                    </div>
+                    <input v-if="editing" id="who" class="input" :value="editing.name" disabled>
+                    <PersonPicker v-else id="who" v-model="form.user_id" :people="people" :placeholder="`พิมพ์ชื่อหรือรหัส (${people.length} คน)`" />
                     <p v-if="form.errors.user_id" class="field-error">{{ form.errors.user_id }}</p>
                 </div>
 

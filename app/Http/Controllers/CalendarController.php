@@ -12,7 +12,7 @@ use Inertia\Response;
 /** หน้าแรกสาธารณะ และปฏิทินหลัง login (เหตุการณ์โหลดทีละเดือนผ่าน JSON) */
 class CalendarController extends Controller
 {
-    public function home(): Response
+    public function home(bool $openLogin = false): Response
     {
         $showType = (bool) Setting::get('public_calendar.show_leave_type');
 
@@ -20,6 +20,7 @@ class CalendarController extends Controller
             'events' => CalendarEvents::month(now()->year, now()->month, 'public'),
             'absentToday' => CalendarEvents::absentToday($showType),
             'upcomingHolidays' => CalendarEvents::upcomingHolidays(),
+            'openLogin' => $openLogin,
         ]);
     }
 

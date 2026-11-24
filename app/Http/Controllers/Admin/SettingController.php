@@ -12,6 +12,7 @@ use App\Models\LeaveType;
 use App\Models\Schedule;
 use App\Models\Setting;
 use App\Models\SpecialDay;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,11 @@ class SettingController extends Controller
                 ...$s->only('id', 'name', 'type', 'applies_to', 'grace_minutes', 'rounding', 'daily_cap_minutes', 'is_active'),
                 ...collect(['start_time', 'end_time', 'count_from', 'break_start', 'break_end', 'special_from'])->mapWithKeys(fn ($f) => [$f => $s->hm($f)])->all(),
             ]),
+            'flex' => [
+                'latest_start' => Setting::get('flex.latest_start'),
+                'min_hours' => Setting::get('flex.min_minutes') / 60,
+                'people' => User::query()->where('flex_time', true)->orderBy('first_name')->get()->map(fn (User $u) => $u->full_name),
+            ],
             'specialDays' => SpecialDay::query()->with('schedule:id,name')->whereDate('date', '>=', now()->subDays(30))->orderBy('date')->get()
                 ->map(fn (SpecialDay $d) => ['id' => $d->id, 'date' => $d->date->toDateString(), 'schedule' => $d->schedule?->name, 'note' => $d->note]),
             'holidays' => Holiday::query()->whereDate('date', '>=', now()->subYear()->startOfYear())->orderBy('date')->get(['id', 'date', 'name'])

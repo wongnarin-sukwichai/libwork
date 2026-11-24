@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Models\User;
@@ -10,17 +11,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
-use Inertia\Inertia;
 use Inertia\Response;
 
 class LoginController extends Controller
 {
-    public function show(): Response
+    /** /login = หน้าแรกสาธารณะที่เปิด modal เข้าสู่ระบบไว้ */
+    public function show(CalendarController $calendar): Response
     {
-        return Inertia::render('Auth/Login', [
-            'googleEnabled' => (bool) Setting::get('login.google') && filled(config('services.google.client_id')),
-            'passwordEnabled' => (bool) Setting::get('login.password') || app()->isLocal(),
-        ]);
+        return $calendar->home(openLogin: true);
+    }
+
+    /** ช่องทางเข้าสู่ระบบที่เปิดอยู่ (แชร์ให้ modal ผ่าน Inertia) */
+    public static function options(): array
+    {
+        return [
+            'google' => (bool) Setting::get('login.google') && filled(config('services.google.client_id')),
+            'password' => (bool) Setting::get('login.password') || app()->isLocal(),
+        ];
     }
 
     /** login ด้วยรหัสผ่านสำรอง (เปิดจากหน้าตั้งค่า หรือใช้ได้เสมอบนเครื่องพัฒนา) */

@@ -1,11 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 import Modal from '@/Components/Modal.vue';
+import Pager from '@/Components/Pager.vue';
 import { thaiDate } from '@/utils/thaiDate';
 
-// ตรวจสอบและปิดงวด (หน้า 8): จัดการรายการผิดปกติให้ครบก่อนปิด · ปิดแล้วข้อมูลเดือนนั้นถูกล็อก
+// ตรวจสอบรายการ (เดิม "ตรวจสอบ/ปิดงวด" หน้า 8): จัดการรายการผิดปกติให้ครบก่อนปิด · ปิดแล้วข้อมูลเดือนนั้นถูกล็อก
 const props = defineProps({ month: String, title: String, closed: Object, monthEnded: Boolean, items: Array, history: Array });
 const page = usePage();
 const isAdmin = computed(() => page.props.auth.user.role === 'admin');
@@ -16,16 +17,23 @@ const left = computed(() => blocking.value.length - done.value);
 const pct = computed(() => (blocking.value.length ? Math.round((done.value / blocking.value.length) * 100) : 100));
 const kinds = [
     { key: 'no_out', label: 'ไม่ได้ลงเวลาออก', cls: 'bg-red-50 text-red-900' },
-    { key: 'absent', label: 'ไม่มาโดยไม่มีใบลา', cls: 'bg-red-50 text-red-900' },
+    { key: 'absent', label: 'ไม่มาโดยไม่มีใบลา', cls: 'bg-red-700 text-white' },
     { key: 'clash', label: 'ข้อมูลขัดกัน', cls: 'bg-violet-50 text-violet-900' },
     { key: 'offline', label: 'บันทึกขณะออฟไลน์', cls: 'border border-line bg-white' },
     { key: 'late', label: 'สาย / ออกก่อน (เพื่อทราบ)', cls: 'border border-line bg-white', also: ['early'] },
 ];
 const count = (k) => props.items.filter((i) => [k.key, ...(k.also ?? [])].includes(i.kind));
-const pill = { no_out: 'bg-red-50 text-red-800', no_in: 'bg-red-50 text-red-800', absent: 'bg-red-50 text-red-800', clash: 'bg-violet-50 text-violet-800', offline: 'bg-sun-100 text-sun-800', late: 'bg-orange-50 text-orange-800', early: 'bg-orange-50 text-orange-800' };
+const pill = { no_out: 'bg-red-50 text-red-800', no_in: 'bg-red-50 text-red-800', absent: 'bg-red-700 text-white', clash: 'bg-violet-50 text-violet-800', offline: 'bg-sun-100 text-sun-800', late: 'bg-orange-100 text-orange-900', early: 'bg-orange-100 text-orange-900' };
 
 const filter = ref('todo');
 const shown = computed(() => (filter.value === 'todo' ? props.items.filter((i) => i.blocking && !i.resolved) : props.items));
+
+// แบ่งหน้า 25 รายการ · เปลี่ยนตัวกรองกลับไปหน้าแรก · จัดการรายการแล้วจำนวนลด ถ้าหน้าเกินให้ถอยกลับ
+const PER_PAGE = 25;
+const pageNo = ref(1);
+const paged = computed(() => shown.value.slice((pageNo.value - 1) * PER_PAGE, pageNo.value * PER_PAGE));
+watch(filter, () => (pageNo.value = 1));
+watch(() => shown.value.length, (n) => (pageNo.value = Math.min(pageNo.value, Math.max(1, Math.ceil(n / PER_PAGE)))));
 
 const go = (delta) => {
     const [y, m] = props.month.split('-').map(Number);
@@ -48,13 +56,13 @@ const unlock = () => unlockForm.post('/staff/close/unlock', { preserveScroll: tr
 </script>
 
 <template>
-    <Head title="ตรวจสอบ/ปิดงวด" />
+    <Head title="ตรวจสอบรายการ" />
     <div class="space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-4 rounded-[20px] bg-navy-700 px-6 py-5 text-white shadow-card">
             <div class="flex items-center gap-3">
                 <button type="button" class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/12" aria-label="เดือนก่อนหน้า" @click="go(-1)"><Icon name="chevron-left" :size="18" /></button>
                 <div>
-                    <div class="text-sm text-navy-300">ตรวจสอบและปิดงวด</div>
+                    <div class="text-sm text-navy-300">ตรวจสอบรายการ</div>
                     <h1 class="text-[28px] font-bold">{{ title }}</h1>
                     <div class="text-sm text-navy-300">{{ closed ? `ปิดแล้วเมื่อ ${closed.at} โดย ${closed.by}` : monthEnded ? 'สถานะ: เปิดอยู่' : 'ยังไม่สิ้นเดือน · ตรวจล่วงหน้าได้' }}</div>
                 </div>
@@ -84,7 +92,7 @@ const unlock = () => unlockForm.post('/staff/close/unlock', { preserveScroll: tr
                     <thead><tr class="border-b border-line text-left text-muted"><th class="px-3 py-3 font-semibold">วันที่</th><th class="px-3 py-3 font-semibold">ชื่อ</th><th class="px-3 py-3 font-semibold">ปัญหา</th><th class="px-3 py-3 font-semibold">รายละเอียด</th><th class="px-3 py-3 font-semibold">สถานะ</th><th class="px-3 py-3" /></tr></thead>
                     <tbody>
                         <tr v-if="!shown.length"><td colspan="6" class="px-4 py-10 text-center text-muted">{{ filter === 'todo' ? 'ไม่มีรายการที่ต้องจัดการ' : 'ไม่มีรายการผิดปกติ' }}</td></tr>
-                        <tr v-for="(i, idx) in shown" :key="idx" class="border-b border-soft">
+                        <tr v-for="i in paged" :key="`${i.user_id}-${i.date}-${i.kind}`" class="border-b border-soft">
                             <td class="whitespace-nowrap px-3 py-2.5">{{ thaiDate(i.date, { short: true, weekday: true }).replace(/ \d{4}$/, '') }}</td>
                             <td class="px-3 py-2.5 font-semibold">{{ i.name }}</td>
                             <td class="px-3 py-2.5"><span class="pill" :class="pill[i.kind]">{{ i.label }}</span></td>
@@ -100,6 +108,7 @@ const unlock = () => unlockForm.post('/staff/close/unlock', { preserveScroll: tr
                     </tbody>
                 </table>
             </div>
+            <Pager v-model="pageNo" :total="shown.length" :per-page="PER_PAGE" />
         </section>
 
         <div class="card flex flex-wrap items-center justify-between gap-3 px-5 py-4">

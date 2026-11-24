@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Models\Attendance;
 use App\Models\AttendanceLog;
+use App\Models\LeaveRecord;
+use App\Models\Setting;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -73,7 +75,45 @@ class AttendanceService
             return;
         }
         $attendance->schedule_id = $schedule->id;
-        $attendance->fill(WorkCalculator::calculate($schedule, $attendance->work_date, $attendance->check_in_at, $attendance->check_out_at));
+        $attendance->fill(WorkCalculator::calculate(
+            $schedule, $attendance->work_date, $attendance->check_in_at, $attendance->check_out_at,
+            half: $attendance->type === 'normal' ? self::halfDayLeave($attendance->user_id, $attendance->work_date->toDateString()) : null,
+            flex: $attendance->type === 'normal' ? self::flexRule($attendance->user ?? User::query()->find($attendance->user_id)) : null,
+        ));
+    }
+
+    /** ลาครึ่งวันของวันนั้น (am|pm) · ลาครึ่งเช้า+ครึ่งบ่ายวันเดียวกัน = ลาเต็มวัน (คืน null) */
+    public static function halfDayLeave(int $userId, string $date): ?string
+    {
+        $halves = LeaveRecord::query()->where('user_id', $userId)->whereNotNull('half_day')
+            ->whereDate('start_date', '<=', $date)->whereDate('end_date', '>=', $date)
+            ->pluck('half_day')->unique();
+
+        return $halves->count() === 1 ? $halves->first() : null;
+    }
+
+    /** กติกาเวลายืดหยุ่นของคนนี้ (null = เวลาปกติ) */
+    public static function flexRule(?User $user): ?array
+    {
+        return $user?->flex_time
+            ? ['latest_start' => (string) Setting::get('flex.latest_start'), 'min_minutes' => (int) Setting::get('flex.min_minutes')]
+            : null;
+    }
+
+    /**
+     * คำนวณชั่วโมงใหม่ของคนหนึ่งในช่วงวันที่ (หลังบันทึก/แก้/ลบวันลาครึ่งวัน หรือเปลี่ยนเวลายืดหยุ่น)
+     * ข้ามวันที่อยู่ในงวดที่ปิดแล้ว (ข้อมูลถูกล็อก)
+     */
+    public static function recalculateRange(int $userId, string $from, string $to): void
+    {
+        Attendance::query()->with(['schedule', 'user'])->where('user_id', $userId)->where('type', 'normal')
+            ->whereDate('work_date', '>=', $from)->whereDate('work_date', '<=', $to)
+            ->get()
+            ->reject(fn (Attendance $a) => MonthClose::isClosed($a->work_date->toDateString()))
+            ->each(function (Attendance $a) {
+                self::recalculate($a);
+                $a->save();
+            });
     }
 
     /**

@@ -5,7 +5,7 @@ use App\Support\LeaveService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
-// ร่างยอดวันลาของปีงบ (สิทธิ์ + ยกมา) ให้ HR ตรวจที่หน้า "ยอดยกมาปีงบ" · ไม่ทับค่าที่ HR แก้หรือยืนยันแล้ว
+// ร่างยอดวันลาของปีงบ (สิทธิ์ + ยกมา) ให้ HR ตรวจที่หน้า "สะสมวันลา" · ไม่ทับค่าที่ HR แก้หรือยืนยันแล้ว
 Artisan::command('libwork:draft-fiscal-year {fy? : ปีงบประมาณ พ.ศ. (ค่าเริ่มต้น = ปีงบปัจจุบัน)}', function () {
     $fy = (int) ($this->argument('fy') ?: FiscalYear::current());
     $count = LeaveService::draftYear($fy);

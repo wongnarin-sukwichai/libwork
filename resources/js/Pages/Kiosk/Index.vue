@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import AppMark from '@/Components/AppMark.vue';
+import { url } from '@/utils/url';
 import { useKiosk } from './useKiosk';
 import { THAI_DAYS, THAI_MONTHS } from '@/utils/thaiDate';
 
@@ -110,8 +110,8 @@ const actions = [
     <div class="flex min-h-screen flex-col bg-white text-ink">
         <header class="flex flex-wrap items-center justify-between gap-3 bg-navy-700 px-6 py-4 text-white shadow-[0_4px_16px_rgba(15,30,58,0.18)] lg:px-10">
             <div class="flex items-center gap-3.5">
-                <AppMark tone="sun" :size="46" />
-                <div>
+                <img :src="url('/img/logos/library.png')" alt="MSU Library" class="h-12 w-auto">
+                <div class="border-l border-white/25 pl-3.5">
                     <div class="text-[21px] font-bold">ระบบลงเวลาปฏิบัติงาน</div>
                     <div class="text-sm text-navy-300">{{ $page.props.app.org }}</div>
                 </div>

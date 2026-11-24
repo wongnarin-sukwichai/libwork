@@ -43,12 +43,14 @@ class PersonReport
                 $workdays += $workday ? 1 : 0;
                 [$status, $tone] = $o && ! $n && ! $workday
                     ? DailyReport::status($o, 'ot', $d, $today)
-                    : DailyReport::status($n, 'normal', $d, $today);
+                    : DailyReport::status($n, 'normal', $d, $today, $user->flex_time);
                 if ($leave = $leaves[$key][$user->id] ?? null) {
                     $leaveDays += $leave->half_day ? 0.5 : 1;
                     if (! $n?->check_in_at || $leave->half_day) {
-                        $status = LeaveService::label($leave);
-                        $tone = $leave->leaveType->category === 'duty' ? 'duty' : 'leave';
+                        // เหมือนหน้ารายวัน: ลาครึ่งวันแล้วสาย/ออกก่อนในครึ่งที่ทำงาน ต่อท้ายสถานะ
+                        $extra = $leave->half_day && in_array($tone, ['late', 'bad'], true) ? " · {$status}" : '';
+                        $status = LeaveService::label($leave).$extra;
+                        $tone = $extra ? $tone : ($leave->leaveType->category === 'duty' ? 'duty' : 'leave');
                     }
                 }
                 $main = $n ?? $o;

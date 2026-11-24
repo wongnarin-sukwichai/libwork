@@ -15,6 +15,7 @@ const props = defineProps({
     departments: Array,
     employmentTypes: Array,
     canAssignRoles: Boolean,
+    groupTotals: { type: [Object, Array], default: () => ({}) }, // { department_id: จำนวน } · 0 = ไม่มีกลุ่มงาน
 });
 
 // ---------- ตัวกรอง ----------
@@ -59,6 +60,19 @@ const toggle = (m) => {
     const action = m.is_active ? 'ระงับการใช้งาน' : 'เปิดใช้งาน';
     if (confirm(`${action} ${m.full_name}?`)) router.post(`/staff/members/${m.id}/toggle`, {}, { preserveScroll: true });
 };
+
+// ---------- จัดกลุ่มตามกลุ่มงาน (แถวเรียงตามกลุ่มมาแล้ว รวมแถวที่ติดกันเป็นกลุ่มเดียว) ----------
+const groups = computed(() => {
+    const out = [];
+    for (const m of props.members.data) {
+        const key = m.department_id ?? 0;
+        if (out[out.length - 1]?.key !== key) {
+            out.push({ key, name: m.department ?? 'ไม่ระบุกลุ่มงาน', total: props.groupTotals[key] ?? null, rows: [] });
+        }
+        out[out.length - 1].rows.push(m);
+    }
+    return out;
+});
 
 const roleClass = { admin: 'bg-navy-700 text-white', staff: 'bg-sun-500 text-black', member: 'bg-soft text-ink' };
 const status = (m) => (!m.is_active ? ['ระงับ', 'bg-soft text-muted'] : !m.last_login_at && m.email ? ['รอ login ครั้งแรก', 'bg-sun-100 text-sun-800'] : ['ใช้งาน', 'bg-green-50 text-green-800']);
@@ -115,7 +129,6 @@ const status = (m) => (!m.is_active ? ['ระงับ', 'bg-soft text-muted'] 
                             <th class="w-10 px-3 py-3"><input type="checkbox" class="h-4 w-4 accent-sun-500" :checked="allOnPage" aria-label="เลือกทั้งหมดในหน้านี้" @change="toggleAll"></th>
                             <th class="px-2 py-3 font-semibold">ชื่อ / อีเมล Google</th>
                             <th class="px-2 py-3 font-semibold">รหัส</th>
-                            <th class="px-2 py-3 font-semibold">กลุ่มงาน</th>
                             <th class="px-2 py-3 font-semibold">ประเภท</th>
                             <th class="px-2 py-3 font-semibold">สิทธิ์</th>
                             <th class="px-2 py-3 text-center font-semibold">OT</th>
@@ -124,22 +137,27 @@ const status = (m) => (!m.is_active ? ['ระงับ', 'bg-soft text-muted'] 
                             <th class="px-2 py-3"><span class="sr-only">จัดการ</span></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr v-if="!members.data.length"><td colspan="10" class="px-4 py-10 text-center text-muted">ไม่พบสมาชิก</td></tr>
-                        <tr v-for="m in members.data" :key="m.id" class="border-b border-soft" :class="{ 'bg-page': selected.includes(m.id) }">
+                    <tbody v-if="!members.data.length">
+                        <tr><td colspan="9" class="px-4 py-10 text-center text-muted">ไม่พบสมาชิก</td></tr>
+                    </tbody>
+                    <!-- จัดกลุ่มตามกลุ่มงานเหมือนหน้ารายวัน (ข้อมูลเรียงตามลำดับกลุ่มงานมาจาก server) -->
+                    <tbody v-for="g in groups" :key="g.key">
+                        <tr class="bg-soft-2">
+                            <td colspan="9" class="px-3 py-2 font-bold">{{ g.name }} <span v-if="g.total !== null" class="text-[13px] font-medium text-muted">· {{ g.total }} คน</span></td>
+                        </tr>
+                        <tr v-for="m in g.rows" :key="m.id" class="border-b border-soft" :class="{ 'bg-page': selected.includes(m.id) }">
                             <td class="px-3 py-2.5"><input v-model="selected" type="checkbox" :value="m.id" class="h-4 w-4 accent-navy-700" :aria-label="`เลือก ${m.full_name}`"></td>
                             <td class="px-2 py-2.5">
                                 <div class="flex items-center gap-2.5">
                                     <img v-if="m.avatar" :src="m.avatar" alt="" class="h-[34px] w-[34px] rounded-full object-cover" referrerpolicy="no-referrer">
                                     <div v-else class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-soft-2 text-[13px] font-bold text-navy-700">{{ m.first_name.slice(0, 2) }}</div>
                                     <div>
-                                        <div class="font-semibold">{{ m.full_name }}</div>
+                                        <div class="font-semibold">{{ m.full_name }}<span v-if="m.flex_time" class="pill ml-1.5 bg-soft-2 text-xs text-navy-700">เวลายืดหยุ่น</span></div>
                                         <div class="text-xs text-muted">{{ m.email ?? 'ไม่มีอีเมล (ลงเวลาที่ kiosk อย่างเดียว)' }}</div>
                                     </div>
                                 </div>
                             </td>
                             <td class="px-2 py-2.5">{{ m.employee_code ?? '—' }}</td>
-                            <td class="px-2 py-2.5">{{ m.department ?? '—' }}</td>
                             <td class="px-2 py-2.5 text-muted">
                                 {{ m.employment_type ?? '—' }}
                                 <div v-if="m.end_date" class="text-xs">ถึง {{ thaiDate(m.end_date, { short: true }) }}</div>

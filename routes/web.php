@@ -7,6 +7,7 @@ use App\Http\Controllers\Staff\CarryOverController;
 use App\Http\Controllers\Staff\LeaveController;
 use App\Http\Controllers\Staff\MonthCloseController;
 use App\Http\Controllers\Staff\ReportController;
+use App\Http\Controllers\Staff\SummaryController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Auth\GoogleController;
@@ -32,6 +33,11 @@ Route::prefix('kiosk/api')->group(function () {
         Route::post('/punch', [KioskController::class, 'punch'])->middleware('throttle:120,1');
     });
 });
+
+// [DEV ONLY] ทางลัดเข้าระบบเป็น admin/staff สำหรับทดสอบบน local — ลบออกก่อนขึ้น host
+if (app()->isLocal()) {
+    Route::post('/dev/login/{role}', \App\Http\Controllers\DevLoginController::class)->whereIn('role', ['admin', 'staff']);
+}
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
@@ -67,8 +73,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/daily.xlsx', [ReportController::class, 'dailyExcel']);
         Route::get('/reports/person.pdf', [ReportController::class, 'personPdf']);
         Route::get('/reports/person.xlsx', [ReportController::class, 'personExcel']);
+        Route::get('/summary', [SummaryController::class, 'index']);
+        Route::get('/reports/summary.pdf', [SummaryController::class, 'pdf']);
+        Route::get('/reports/summary.xlsx', [SummaryController::class, 'excel']);
         Route::get('/leaves', [LeaveController::class, 'index']);
         Route::get('/leaves/preview', [LeaveController::class, 'preview']);
+        Route::get('/leaves/options', [LeaveController::class, 'options']);
         Route::post('/leaves', [LeaveController::class, 'store']);
         Route::post('/leaves/{leave}', [LeaveController::class, 'update']); // POST เพราะมีไฟล์แนบ
         Route::delete('/leaves/{leave}', [LeaveController::class, 'destroy']);
@@ -82,7 +92,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/carry-over/unlock', [CarryOverController::class, 'unlock']);
         Route::put('/carry-over/{balance}', [CarryOverController::class, 'update']);
         Route::post('/carry-over/inquiries/{inquiry}/reply', [CarryOverController::class, 'reply']);
+    });
 
+    // สมาชิก: อยู่ในโมดูล "ระบบ" เฉพาะ admin (URL เดิม /staff/members)
+    Route::prefix('staff')->middleware('role:admin')->group(function () {
         Route::get('/members', [MemberController::class, 'index']);
         Route::post('/members', [MemberController::class, 'store']);
         Route::put('/members/{member}', [MemberController::class, 'update']);
@@ -105,6 +118,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/schedules/{schedule}', [ScheduleController::class, 'update']);
         Route::post('/settings/special-days', [ScheduleController::class, 'storeSpecialDay']);
         Route::delete('/settings/special-days/{specialDay}', [ScheduleController::class, 'destroySpecialDay']);
+        Route::put('/settings/flex', [ScheduleController::class, 'updateFlex']);
 
         Route::post('/settings/holidays', [LeaveSettingController::class, 'storeHoliday']);
         Route::delete('/settings/holidays/{holiday}', [LeaveSettingController::class, 'destroyHoliday']);

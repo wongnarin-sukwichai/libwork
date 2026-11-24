@@ -1,5 +1,5 @@
 import { createApp, h } from 'vue';
-import { createInertiaApp, http } from '@inertiajs/vue3';
+import { createInertiaApp, http, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { url, urlAbsolute } from '@/utils/url';
@@ -12,7 +12,7 @@ window.fetch = (input, init) => nativeFetch(typeof input === 'string' ? url(inpu
 const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
 
 // หน้าที่ไม่ต้อง login ใช้ PublicLayout (แถบหัวสีน้ำเงิน) ที่เหลือใช้ AppLayout (sidebar)
-const publicPages = ['Home', 'Auth/Login'];
+const publicPages = ['Home'];
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ระบบลงเวลาปฏิบัติงาน` : 'ระบบลงเวลาปฏิบัติงาน'),
@@ -29,4 +29,14 @@ createInertiaApp({
         app.use(plugin).mount(el);
     },
     progress: { color: '#F5B700' },
+});
+
+// เปลี่ยนหน้า (เมนู / ลิงก์ไปหน้าอื่น) แบบ fade · เปลี่ยนตัวกรองในหน้าเดิมไม่ fade จะได้ไม่กะพริบ
+let lastComponent = null;
+router.on('navigate', (event) => {
+    const component = event.detail.page.component;
+    const changed = lastComponent !== null && component !== lastComponent;
+    lastComponent = component;
+    if (!changed || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.querySelector('[data-page-content]')?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
 });

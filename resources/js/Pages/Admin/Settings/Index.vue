@@ -7,6 +7,7 @@ import HolidaysTab from './HolidaysTab.vue';
 import KioskTab from './KioskTab.vue';
 import LeavePolicyTab from './LeavePolicyTab.vue';
 import SchedulesTab from './SchedulesTab.vue';
+import FadeSwap from '@/Components/FadeSwap.vue';
 
 const props = defineProps({
     tab: String,
@@ -15,6 +16,7 @@ const props = defineProps({
     employmentTypes: Array,
     schedules: Array,
     specialDays: Array,
+    flex: Object,
     kiosk: Object,
     holidays: Array,
     leaveTypes: Array,
@@ -115,6 +117,7 @@ const saveType = () => {
             >{{ t.label }}</button>
         </div>
 
+        <FadeSwap>
         <!-- ทั่วไป -->
         <form v-if="active === 'general'" class="card max-w-2xl space-y-5 p-6" @submit.prevent="saveGeneral">
             <div>
@@ -227,7 +230,7 @@ const saveType = () => {
             </div>
         </section>
 
-        <SchedulesTab v-else-if="active === 'schedules'" :schedules="schedules" :special-days="specialDays" />
+        <SchedulesTab v-else-if="active === 'schedules'" :schedules="schedules" :special-days="specialDays" :flex="flex" />
         <KioskTab v-else-if="active === 'kiosk'" :kiosk="kiosk" />
         <HolidaysTab v-else-if="active === 'holidays'" :holidays="holidays" />
         <LeavePolicyTab v-else-if="active === 'leave'" :leave-types="leaveTypes" :employment-types="employmentTypes" :policies="policies" />
@@ -236,6 +239,7 @@ const saveType = () => {
             <p class="text-lg font-semibold">{{ tabs.find((t) => t.key === active)?.label }}</p>
             <p class="text-muted">จะเพิ่มใน{{ tabs.find((t) => t.key === active)?.soon }}</p>
         </div>
+        </FadeSwap>
     </div>
 
     <Modal v-if="deptModal" :title="deptForm.id ? 'แก้ไขกลุ่มงาน' : 'เพิ่มกลุ่มงาน'" width="max-w-lg" @close="deptModal = false">

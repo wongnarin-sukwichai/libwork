@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\EmploymentType;
 use App\Models\User;
+use App\Support\AttendanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,7 +14,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * จัดการสมาชิก: staff และ admin เพิ่ม/แก้ไขได้ · กำหนดสิทธิ์ admin/staff ได้เฉพาะ admin
+ * จัดการสมาชิก (โมดูล "ระบบ"): route เปิดเฉพาะ admin · เงื่อนไข staff ด้านล่างเก็บไว้กันพลาดถ้าเปิดให้ staff อีก
  */
 class MemberController extends Controller
 {
@@ -21,8 +22,7 @@ class MemberController extends Controller
     {
         $filters = $request->only('q', 'role', 'department', 'status');
 
-        $members = User::query()
-            ->with(['department:id,name', 'employmentType:id,name'])
+        $query = User::query()
             ->when($filters['q'] ?? null, function ($q, $term) {
                 $q->where(fn ($w) => $w->where('first_name', 'like', "%{$term}%")
                     ->orWhere('last_name', 'like', "%{$term}%")
@@ -32,8 +32,18 @@ class MemberController extends Controller
             ->when($filters['role'] ?? null, fn ($q, $role) => $q->where('role', $role))
             ->when($filters['department'] ?? null, fn ($q, $id) => $q->where('department_id', $id))
             ->when(($filters['status'] ?? null) === 'active', fn ($q) => $q->where('is_active', true))
-            ->when(($filters['status'] ?? null) === 'suspended', fn ($q) => $q->where('is_active', false))
+            ->when(($filters['status'] ?? null) === 'suspended', fn ($q) => $q->where('is_active', false));
+
+        // จำนวนคนในแต่ละกลุ่มงานตามตัวกรอง (ทุกหน้า) ใช้แสดงที่หัวกลุ่ม · key 0 = ไม่มีกลุ่มงาน
+        $groupTotals = (clone $query)->selectRaw('coalesce(department_id, 0) as dept, count(*) as total')
+            ->groupBy('dept')->pluck('total', 'dept');
+
+        $members = $query
+            ->with(['department:id,name', 'employmentType:id,name'])
+            // เรียงตามกลุ่มงานเหมือนหน้ารายวัน · ไม่มีกลุ่มงานอยู่ท้าย
+            ->orderByRaw('users.department_id is null')
             ->orderBy(Department::select('sort_order')->whereColumn('departments.id', 'users.department_id'))
+            ->orderBy('users.department_id')
             ->orderBy('first_name')
             ->paginate(25)
             ->withQueryString()
@@ -56,12 +66,14 @@ class MemberController extends Controller
                 'end_date' => $u->end_date?->toDateString(),
                 'ot_eligible' => $u->ot_eligible,
                 'mobile_checkin' => $u->mobile_checkin,
+                'flex_time' => $u->flex_time,
                 'is_active' => $u->is_active,
                 'last_login_at' => $u->last_login_at?->toIso8601String(),
             ]);
 
         return Inertia::render('Staff/Members/Index', [
             'members' => $members,
+            'groupTotals' => $groupTotals,
             'filters' => $filters,
             'counts' => User::query()->selectRaw('role, count(*) as total')->groupBy('role')->pluck('total', 'role'),
             'total' => User::query()->count(),
@@ -93,7 +105,12 @@ class MemberController extends Controller
         $data = $this->validated($request, $member);
         // กลุ่มงานเปลี่ยนผ่าน "ย้ายกลุ่มงาน" เท่านั้น เพื่อเก็บวันที่มีผล
         unset($data['department_id']);
+        $flexChanged = array_key_exists('flex_time', $data) && (bool) $data['flex_time'] !== $member->flex_time;
         $member->update($data);
+        // เปลี่ยนเวลายืดหยุ่น: คำนวณชั่วโมงของเดือนนี้ใหม่ (งวดที่ปิดแล้วไม่แตะ)
+        if ($flexChanged) {
+            AttendanceService::recalculateRange($member->id, now()->startOfMonth()->toDateString(), now()->toDateString());
+        }
 
         return back()->with('success', "บันทึกข้อมูล {$member->full_name} แล้ว");
     }
@@ -159,6 +176,7 @@ class MemberController extends Controller
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'ot_eligible' => ['boolean'],
             'mobile_checkin' => ['boolean'],
+            'flex_time' => ['boolean'],
         ]);
 
         $data['email'] = isset($data['email']) ? strtolower($data['email']) : null;

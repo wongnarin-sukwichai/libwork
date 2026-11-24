@@ -9,17 +9,31 @@
 <sethtmlpagefooter name="footer" value="on" />
 
 <div class="head">
-    <div class="org">{{ $org }}</div>
-    <h1>รายงานการลงเวลาปฏิบัติงานประจำวัน{{ $report['type'] === 'ot' ? ' (ล่วงเวลา)' : '' }}</h1>
-    <div class="sub">{{ thai_date($report['date'], false, true) }}@if ($report['schedule']) · {{ $report['schedule']['name'] }} {{ $report['schedule']['start'] }}–{{ $report['schedule']['end'] }} น.@endif</div>
+    {{-- โลโก้ฉบับสีเข้ม (ส่วนที่เป็นสีขาวในไฟล์เดิมเปลี่ยนเป็นน้ำเงิน เพื่อให้เห็นบนกระดาษขาว) --}}
+    <table style="width: 100%;"><tr>
+        <td style="width: 62pt; vertical-align: middle;"><img src="{{ public_path('img/logos/library-dark.png') }}" style="width: 56pt;"></td>
+        <td style="vertical-align: middle; padding-left: 6pt; border-left: 0.75pt solid #DFE5F0;">
+            <div class="org">{{ $org }}</div>
+            <h1>รายงานการลงเวลาปฏิบัติงานประจำวัน{{ $report['type'] === 'ot' ? ' (ล่วงเวลา)' : '' }}</h1>
+            <div class="sub">{{ thai_date($report['date'], false, true) }}@if ($report['schedule']) · {{ $report['schedule']['name'] }} {{ $report['schedule']['start'] }}–{{ $report['schedule']['end'] }} น.@endif</div>
+        </td>
+    </tr></table>
 </div>
 
 <table class="sum"><tr>
+@if ($report['type'] === 'ot')
+    {{-- OT แสดงเฉพาะคนที่มีรายการ OT: สรุปเหมือนการ์ด 3 ใบบนหน้าเว็บ --}}
+    <td>มาปฏิบัติงาน (OT)<br><b>{{ $report['stats']['present'] }}</b></td>
+    <td>ล่วงเวลาพิเศษ<br><b>{{ $report['stats']['special'] }}</b></td>
+    <td>ไม่ได้ลงเวลาออก<br><b>{{ $report['stats']['no_out'] }}</b></td>
+@else
     <td>บุคลากร<br><b>{{ $report['stats']['total'] }}</b></td>
-    <td>{{ $report['type'] === 'ot' ? 'ลง OT' : 'มาปฏิบัติงาน' }}<br><b>{{ $report['stats']['present'] }}</b></td>
+    <td>มาปฏิบัติงาน<br><b>{{ $report['stats']['present'] }}</b></td>
     <td>สาย / ออกก่อน<br><b>{{ $report['stats']['late'] }}</b></td>
-    <td>ลา / ไปราชการ<br><b>{{ $report['stats']['leave'] }}</b></td>
+    <td>ลา<br><b>{{ $report['stats']['leave'] }}</b></td>
+    <td>ไปราชการ<br><b>{{ $report['stats']['duty'] }}</b></td>
     <td>ไม่ได้ลงเวลา<br><b>{{ $report['stats']['absent'] + $report['stats']['no_out'] }}</b></td>
+@endif
 </tr></table>
 
 @php($n = 0)

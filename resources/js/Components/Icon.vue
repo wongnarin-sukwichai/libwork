@@ -1,7 +1,7 @@
 <script setup>
 // ไอคอนที่ใช้ในระบบ (lucide) ระบุด้วยชื่อ เช่น <Icon name="house" />
 import {
-    ArrowDown, ArrowUp, Building2, Calculator, CalendarCheck, CalendarDays, Check, ChevronLeft, ChevronRight,
+    ArrowDown, ArrowUp, Building2, Calculator, CalendarCheck, CalendarDays, ChartColumn, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
     Clock, FilePen, History, House, ListChecks, LogIn, LogOut, Menu, Pencil, Plus, Search, Settings,
     ShieldCheck, Upload, UserCheck, UserMinus, UserSearch, Users, X, ArrowRightLeft, IdCard,
 } from 'lucide-vue-next';
@@ -14,6 +14,9 @@ const icons = {
     calculator: Calculator,
     'calendar-check': CalendarCheck,
     'calendar-days': CalendarDays,
+    'circle-alert': CircleAlert,
+    'circle-check': CircleCheck,
+    'chart-column': ChartColumn,
     check: Check,
     'chevron-left': ChevronLeft,
     'chevron-right': ChevronRight,

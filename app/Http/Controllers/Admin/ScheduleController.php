@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Schedule;
+use App\Models\Setting;
 use App\Models\SpecialDay;
+use App\Models\User;
 use App\Support\AttendanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +37,21 @@ class ScheduleController extends Controller
             });
 
         return back()->with('success', "บันทึกรูปแบบ {$schedule->name} แล้ว");
+    }
+
+    /** กติกาเวลายืดหยุ่น (ใช้กับคนที่ติ๊ก "เวลายืดหยุ่น" ในหน้าสมาชิก) · บันทึกแล้วคำนวณชั่วโมงของเดือนนี้ใหม่ */
+    public function updateFlex(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'latest_start' => ['required', 'date_format:H:i'],
+            'min_hours' => ['required', 'numeric', 'min:1', 'max:12'],
+        ], ['latest_start.date_format' => 'รูปแบบเวลาไม่ถูกต้อง']);
+        Setting::put('flex.latest_start', $data['latest_start']);
+        Setting::put('flex.min_minutes', (int) round($data['min_hours'] * 60));
+        User::query()->where('flex_time', true)->pluck('id')
+            ->each(fn ($id) => AttendanceService::recalculateRange($id, now()->startOfMonth()->toDateString(), now()->toDateString()));
+
+        return back()->with('success', 'บันทึกกติกาเวลายืดหยุ่นแล้ว');
     }
 
     public function storeSpecialDay(Request $request): RedirectResponse

@@ -37,6 +37,10 @@
     --color-sun-100: #fff3c4;
     --color-sun-300: #ffe08a;
     --color-sun-500: #f5b700;
+
+    /* ปุ่ม Excel (เขียวแบบ Microsoft Excel) */
+    --color-excel: #217346;
+    --color-excel-dark: #185c37;
     --color-sun-600: #d99f00;
     --color-sun-800: #5a4300;
 
@@ -99,4 +103,46 @@
 
 @utility field-error {
     @apply mt-1 text-sm text-red-700;
+}
+
+/* toast (Components/FlashToast.vue) แบบโปรเจกต์ sstoey: เลื่อนเข้า/ออกทางขวา ซ้อนกันได้ แถบนับถอยหลัง hover แล้วหยุด */
+.toast-enter-active,
+.toast-leave-active {
+    transition:
+        opacity 0.35s ease,
+        transform 0.45s cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+.toast-enter-from {
+    opacity: 0;
+    transform: translateX(110%) scale(0.95);
+}
+.toast-leave-to {
+    opacity: 0;
+    transform: translateX(110%);
+}
+.toast-leave-active {
+    position: absolute;
+    width: 100%;
+}
+.toast-move {
+    transition: transform 0.35s ease;
+}
+.toast-progress {
+    width: 100%;
+    animation-name: toast-countdown;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+}
+.toast-card:hover .toast-progress {
+    animation-play-state: paused;
+}
+@keyframes toast-countdown {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .toast-enter-from,
+    .toast-leave-to {
+        transform: none;
+    }
 }

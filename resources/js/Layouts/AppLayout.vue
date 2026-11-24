@@ -52,16 +52,20 @@ const logout = () => router.post('/logout');
                 </div>
             </div>
 
-            <Link
-                v-for="item in menu"
-                :key="item.href"
-                :href="item.href"
-                class="flex items-center gap-3 rounded-[10px] px-3 py-[11px] text-[15px] transition"
-                :class="isActive(item.href) ? 'bg-navy-700 font-bold text-white shadow-nav' : 'text-ink hover:bg-soft'"
-            >
-                <Icon :name="item.icon" :size="19" />
-                {{ item.label }}
-            </Link>
+            <!-- โมดูล (หัวข้อ) และเมนูในโมดูล จาก config/menu.php -->
+            <div v-for="(m, mi) in menu" :key="m.module ?? mi" class="flex flex-col gap-1" :class="{ 'mt-4': mi > 0 }">
+                <div v-if="m.module" class="px-3 pb-1 text-xs font-semibold tracking-wide text-muted">{{ m.module }}</div>
+                <Link
+                    v-for="item in m.items"
+                    :key="item.href"
+                    :href="item.href"
+                    class="flex items-center gap-3 rounded-[10px] px-3 py-[11px] text-[15px] transition"
+                    :class="isActive(item.href) ? 'bg-navy-700 font-bold text-white shadow-nav' : 'text-ink hover:bg-soft'"
+                >
+                    <Icon :name="item.icon" :size="19" />
+                    {{ item.label }}
+                </Link>
+            </div>
 
             <div class="mt-auto pt-6">
                 <div class="flex items-center gap-2.5 rounded-xl bg-page p-3">
@@ -78,7 +82,7 @@ const logout = () => router.post('/logout');
             </div>
         </nav>
 
-        <main class="min-w-0 flex-1 px-4 py-6 sm:px-7 lg:px-8">
+        <main data-page-content class="min-w-0 flex-1 px-4 py-6 sm:px-7 lg:px-8">
             <slot />
         </main>
 

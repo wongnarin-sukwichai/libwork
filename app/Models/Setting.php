@@ -25,7 +25,7 @@ class Setting extends Model
 
     /** ค่าเริ่มต้นเมื่อยังไม่เคยบันทึก */
     public const DEFAULTS = [
-        'org_name' => '[ชื่อหน่วยงาน]',
+        'org_name' => 'สำนักวิทยบริการ มหาวิทยาลัยมหาสารคาม',
         'login.google' => true,
         'login.password' => false,
         'checkin.kiosk' => true,
@@ -34,6 +34,9 @@ class Setting extends Model
         'report.head_title' => 'หัวหน้าสำนัก / ผู้อำนวยการ',
         'report.head_name' => null,
         'public_calendar.show_leave_type' => false,
+        // เวลายืดหยุ่น (เฉพาะคนที่ติ๊ก flex_time): เริ่มนับ 08:30 ตามรูปแบบเวลาปกติ · เข้าไม่เกิน latest_start · ชั่วโมงสุทธิ (หักพัก) ไม่น้อยกว่า min_minutes
+        'flex.latest_start' => '09:00',
+        'flex.min_minutes' => 420,
     ];
 
     public static function get(string $key, mixed $default = null): mixed

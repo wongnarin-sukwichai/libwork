@@ -1,27 +1,35 @@
 <?php
 
 /*
-| เมนู sidebar ตาม role · ลำดับในไฟล์คือลำดับในเมนู
+| เมนู sidebar ตาม role · จัดเป็นโมดูล (หัวข้อใน sidebar) แต่ละโมดูลมีเมนูของตัวเอง
+| module = ชื่อหัวข้อ (null = ไม่แสดงหัวข้อ) · admin_only ใช้ได้ทั้งระดับโมดูลและระดับเมนู
 | icon = ชื่อไอคอนของ lucide (resources/js/Components/Icon.vue)
 | ตรวจสิทธิ์ของ route อยู่ใน routes/web.php (middleware role:...)
 */
 
 return [
     'member' => [
-        ['label' => 'หน้าหลัก', 'href' => '/me', 'icon' => 'house'],
-        ['label' => 'เวลาปฏิบัติงานของฉัน', 'href' => '/me/attendance', 'icon' => 'clock'],
-        ['label' => 'สิทธิ์วันลา', 'href' => '/me/leave', 'icon' => 'calendar-check'],
-        ['label' => 'ปฏิทิน', 'href' => '/calendar', 'icon' => 'calendar-days'],
+        ['module' => null, 'items' => [
+            ['label' => 'หน้าหลัก', 'href' => '/me', 'icon' => 'house'],
+            ['label' => 'เวลาปฏิบัติงานของฉัน', 'href' => '/me/attendance', 'icon' => 'clock'],
+            ['label' => 'สิทธิ์วันลา', 'href' => '/me/leave', 'icon' => 'calendar-check'],
+            ['label' => 'ปฏิทิน', 'href' => '/calendar', 'icon' => 'calendar-days'],
+        ]],
     ],
 
     'staff' => [
-        ['label' => 'หน้าหลัก · รายวัน', 'href' => '/staff', 'icon' => 'house'],
-        ['label' => 'รายบุคคล', 'href' => '/staff/person', 'icon' => 'user-search'],
-        ['label' => 'บันทึกวันลา', 'href' => '/staff/leaves', 'icon' => 'file-pen'],
-        ['label' => 'ปฏิทิน', 'href' => '/calendar', 'icon' => 'calendar-days'],
-        ['label' => 'ตรวจสอบ/ปิดงวด', 'href' => '/staff/close', 'icon' => 'list-checks'],
-        ['label' => 'ยอดยกมาปีงบ', 'href' => '/staff/carry-over', 'icon' => 'calculator'],
-        ['label' => 'สมาชิก', 'href' => '/staff/members', 'icon' => 'users'],
-        ['label' => 'ตั้งค่า', 'href' => '/admin/settings', 'icon' => 'settings', 'admin_only' => true],
+        ['module' => 'หน้าหลัก', 'items' => [
+            ['label' => 'รายวัน', 'href' => '/staff', 'icon' => 'house'],
+            ['label' => 'รายบุคคล', 'href' => '/staff/person', 'icon' => 'user-search'],
+            ['label' => 'ประวัติวันลา', 'href' => '/staff/leaves', 'icon' => 'history'],
+            ['label' => 'ปฏิทิน', 'href' => '/calendar', 'icon' => 'calendar-days'],
+            ['label' => 'สรุปภาพรวม', 'href' => '/staff/summary', 'icon' => 'chart-column'],
+            ['label' => 'ตรวจสอบรายการ', 'href' => '/staff/close', 'icon' => 'list-checks'],
+            ['label' => 'สะสมวันลา', 'href' => '/staff/carry-over', 'icon' => 'calculator'],
+        ]],
+        ['module' => 'ระบบ', 'admin_only' => true, 'items' => [
+            ['label' => 'สมาชิก', 'href' => '/staff/members', 'icon' => 'users'],
+            ['label' => 'ตั้งค่า', 'href' => '/admin/settings', 'icon' => 'settings'],
+        ]],
     ],
 ];

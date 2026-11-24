@@ -26,6 +26,7 @@ const form = useForm({
     end_date: m?.end_date ?? '',
     ot_eligible: m?.ot_eligible ?? false,
     mobile_checkin: m?.mobile_checkin ?? false,
+    flex_time: m?.flex_time ?? false,
 });
 
 const submit = () => {
@@ -114,6 +115,7 @@ const roles = [
             <div class="flex flex-wrap gap-x-6 gap-y-2 sm:col-span-6">
                 <label class="flex items-center gap-2 text-[15px]"><input v-model="form.ot_eligible" type="checkbox" class="h-4 w-4 accent-navy-700"> มีสิทธิ์ลง OT</label>
                 <label class="flex items-center gap-2 text-[15px]"><input v-model="form.mobile_checkin" type="checkbox" class="h-4 w-4 accent-navy-700"> อนุญาตลงเวลาผ่านมือถือ</label>
+                <label class="flex items-start gap-2 text-[15px]"><input v-model="form.flex_time" type="checkbox" class="mt-1 h-4 w-4 accent-navy-700"> <span>เวลายืดหยุ่น <span class="block text-xs text-muted">นับชั่วโมงจริงตั้งแต่ 08:30 · กติกาตั้งที่ ตั้งค่า › รูปแบบเวลา</span></span></label>
             </div>
         </form>
         <template #footer>

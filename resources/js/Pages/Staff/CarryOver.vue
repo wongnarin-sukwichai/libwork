@@ -4,7 +4,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 import Modal from '@/Components/Modal.vue';
 
-// ตรวจยอดยกมาปีงบ (หน้า 9): ร่างโดยระบบ → HR ตรวจ/แก้ (มีเหตุผล) → ยืนยัน → บุคลากรเห็นยอดใหม่
+// สะสมวันลา (เดิม "ยอดยกมาปีงบ" หน้า 9): ร่างโดยระบบ → HR ตรวจ/แก้ (มีเหตุผล) → ยืนยัน → บุคลากรเห็นยอดใหม่
 const props = defineProps({ fy: Number, status: String, rows: Array, inquiries: Array });
 const page = usePage();
 const isAdmin = computed(() => page.props.auth.user.role === 'admin');
@@ -40,11 +40,11 @@ const unlock = () => unlockForm.post('/staff/carry-over/unlock', { preserveScrol
 </script>
 
 <template>
-    <Head title="ยอดยกมาปีงบ" />
+    <Head title="สะสมวันลา" />
     <div class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3">
             <div>
-                <h1 class="text-[26px] font-bold">ตรวจยอดยกมา · ลาพักผ่อน</h1>
+                <h1 class="text-[26px] font-bold">สะสมวันลา · ลาพักผ่อน</h1>
                 <p class="text-[15px] text-muted">ปีงบประมาณ {{ fy - 1 }} → {{ fy }} · ใช้กรอกยอดเริ่มต้นตอนเปิดระบบได้ด้วย</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
@@ -77,6 +77,7 @@ const unlock = () => unlockForm.post('/staff/carry-over/unlock', { preserveScrol
                         <thead>
                             <tr class="bg-navy-700 text-left text-white">
                                 <th class="px-2.5 py-3 font-semibold">ชื่อ</th>
+                                <th class="px-2.5 py-3 font-semibold">ประเภท</th>
                                 <th class="px-2.5 py-3 font-semibold">อายุงาน</th>
                                 <th class="px-2.5 py-3 font-semibold">ปีก่อน: ยกมา + สิทธิ์ − ใช้</th>
                                 <th class="px-2.5 py-3 font-semibold">คงเหลือ</th>
@@ -89,7 +90,8 @@ const unlock = () => unlockForm.post('/staff/carry-over/unlock', { preserveScrol
                         </thead>
                         <tbody>
                             <tr v-for="r in rows" :key="r.id" class="border-b border-soft">
-                                <td class="px-2.5 py-2.5"><div class="font-semibold">{{ r.name }}</div><div class="text-xs text-muted">{{ r.employment_type }}</div></td>
+                                <td class="px-2.5 py-2.5 font-semibold">{{ r.name }}</td>
+                                <td class="px-2.5 py-2.5 text-muted">{{ r.employment_type ?? "—" }}</td>
                                 <td class="px-2.5 py-2.5">{{ r.service_years !== null ? `${r.service_years} ปี` : '—' }}</td>
                                 <td class="px-2.5 py-2.5 text-muted">{{ fmt(r.prev_carried) }} + {{ fmt(r.prev_entitled) }} − {{ fmt(r.prev_used) }}</td>
                                 <td class="px-2.5 py-2.5">{{ fmt(r.prev_remaining) }}</td>

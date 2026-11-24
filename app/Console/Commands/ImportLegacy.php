@@ -53,7 +53,8 @@ class ImportLegacy extends Command
                 $model = Department::query()->where('legacy_id', $dep->id)->first()
                     ?? Department::query()->whereNull('legacy_id')->where('name', $name)->first()
                     ?? new Department;
-                $model->fill(['name' => $name, 'sort_order' => (int) $dep->dep_group, 'is_active' => true, 'legacy_id' => $dep->id])->save();
+                // กลุ่มที่นำเข้าแล้วไม่ทับชื่อ (HR อาจเปลี่ยนชื่อในระบบใหม่ เช่น แม่บ้าน → เจ้าหน้าที่ทำความสะอาด)
+                $model->fill(['name' => $model->exists ? $model->name : $name, 'sort_order' => (int) $dep->dep_group, 'is_active' => true, 'legacy_id' => $dep->id])->save();
                 $depMap[$dep->id] = $model;
             }
 
@@ -85,7 +86,7 @@ class ImportLegacy extends Command
                     'last_name' => trim($m->surname),
                     'email' => $email ?? $user->email,
                     'employment_type_id' => $typeId,
-                    'department_id' => $dep?->id,
+                    'department_id' => $dep?->id ?? $user->department_id, // ระบบเดิมไม่มีกลุ่ม = คงกลุ่มที่ตั้งในระบบใหม่
                     'start_date' => $workDay,
                     'is_active' => $m->stat === null || (int) $m->stat === 1,
                 ]);

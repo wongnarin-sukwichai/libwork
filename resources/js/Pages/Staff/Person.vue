@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import Icon from '@/Components/Icon.vue';
 import Modal from '@/Components/Modal.vue';
+import PersonPicker from '@/Components/PersonPicker.vue';
 import StatusPill from '@/Components/StatusPill.vue';
 import { thaiDate, isoDate } from '@/utils/thaiDate';
 import { url } from '@/utils/url';
@@ -16,11 +17,6 @@ const props = defineProps({
     report: { type: Object, default: null },
 });
 
-const search = ref('');
-const filtered = computed(() => {
-    const q = search.value.trim();
-    return q ? props.people.filter((p) => p.name.includes(q) || (p.code ?? '').includes(q)) : props.people;
-});
 const userId = ref(props.selected?.id ?? '');
 const from = ref(props.from ?? '');
 const to = ref(props.to ?? '');
@@ -65,20 +61,14 @@ const photoUrl = (r, kind) => url(`/photos/attendance/${r.attendance_id}/${kind}
             <div v-if="report" class="flex flex-wrap items-center gap-2">
                 <label class="flex items-center gap-2 text-sm"><input v-model="photos" type="checkbox" class="h-4 w-4 accent-navy-700"> แสดงรูปใน PDF</label>
                 <a :href="pdfUrl" target="_blank" class="btn-primary">PDF พร้อมช่องลงนาม</a>
-                <a :href="xlsxUrl" class="btn-outline">Excel</a>
+                <a :href="xlsxUrl" class="btn bg-excel text-white hover:bg-excel-dark">Excel</a>
             </div>
         </div>
 
         <section class="card flex flex-wrap items-end gap-3 p-4">
             <div class="min-w-[260px] flex-[2_1_260px]">
                 <label for="p" class="label">บุคลากร</label>
-                <div class="flex gap-2">
-                    <input v-model="search" class="input max-w-[150px]" placeholder="ค้นชื่อ/รหัส" aria-label="ค้นหาบุคลากร">
-                    <select id="p" v-model="userId" class="input" @change="pickPerson">
-                        <option value="" disabled>เลือกบุคลากร ({{ filtered.length }})</option>
-                        <option v-for="p in filtered" :key="p.id" :value="p.id">{{ p.name }}{{ p.code ? ` (${p.code})` : '' }}{{ p.active ? '' : ' · ระงับ' }}</option>
-                    </select>
-                </div>
+                <PersonPicker id="p" v-model="userId" :people="people" :placeholder="`พิมพ์ชื่อหรือรหัส (${people.length} คน)`" @select="pickPerson" />
             </div>
             <div class="flex-[1_1_140px]">
                 <label for="f" class="label">ตั้งแต่</label>
@@ -110,7 +100,7 @@ const photoUrl = (r, kind) => url(`/photos/attendance/${r.attendance_id}/${kind}
                 <div class="grid grid-cols-2 gap-2.5">
                     <div class="rounded-[14px] bg-sun-500 px-3.5 py-3 text-black shadow-card"><div class="text-[13px]">มาปฏิบัติงาน</div><div class="text-[22px] font-bold">{{ report.stats.present }} / {{ report.stats.workdays }} วัน</div></div>
                     <div class="card px-3.5 py-3"><div class="text-[13px] text-muted">ชั่วโมงรวม</div><div class="text-[22px] font-bold">{{ report.stats.hours }}</div></div>
-                    <div class="rounded-[14px] bg-orange-50 px-3.5 py-3 text-orange-900 shadow-card"><div class="text-[13px]">มาสาย</div><div class="text-[22px] font-bold">{{ report.stats.late_count }} ครั้ง</div></div>
+                    <div class="rounded-[14px] bg-orange-100 px-3.5 py-3 text-orange-900 shadow-card"><div class="text-[13px]">มาสาย</div><div class="text-[22px] font-bold">{{ report.stats.late_count }} ครั้ง</div></div>
                     <div class="rounded-[14px] bg-soft-2 px-3.5 py-3 text-navy-700 shadow-card"><div class="text-[13px]">ลา</div><div class="text-[22px] font-bold">{{ report.stats.leave_days }} วัน</div></div>
                 </div>
             </div>

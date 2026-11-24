@@ -44,12 +44,14 @@ class DailyReport
         $rows = $users->map(function (User $u) use ($attendances, $deptOn, $day, $today, $type, $leaves, $withPhotoPaths) {
             /** @var Attendance|null $a */
             $a = $attendances->get($u->id);
-            [$status, $tone] = self::status($a, $type, $day, $today);
+            [$status, $tone] = self::status($a, $type, $day, $today, $u->flex_time);
             $leave = $leaves[$u->id] ?? null;
             if ($leave && (! $a?->check_in_at || $leave->half_day)) {
                 // ลาเต็มวัน หรือลาครึ่งวัน: แสดงสถานะการลา (ลาครึ่งวันแต่มาทำงาน ยังเห็นเวลาเข้า-ออก)
-                $status = LeaveService::label($leave);
-                $tone = $leave->leaveType->category === 'duty' ? 'duty' : 'leave';
+                // ลาครึ่งวันแล้วสาย/ออกก่อนในครึ่งที่ทำงาน (คิดจากครึ่งวันแล้ว) ต่อท้ายให้เห็น
+                $extra = $leave->half_day && in_array($tone, ['late', 'bad'], true) ? " · {$status}" : '';
+                $status = LeaveService::label($leave).$extra;
+                $tone = $extra ? $tone : ($leave->leaveType->category === 'duty' ? 'duty' : 'leave');
             }
 
             return [
@@ -109,7 +111,9 @@ class DailyReport
                 'total' => $rows->count(),
                 'present' => $rows->whereNotNull('check_in')->whereNotIn('tone', ['leave', 'duty'])->count(),
                 'late' => $rows->where('tone', 'late')->count(),
-                'leave' => $rows->whereIn('tone', ['leave', 'duty'])->count(),
+                'leave' => $rows->where('tone', 'leave')->count(),
+                'duty' => $rows->where('tone', 'duty')->count(),
+                'special' => $rows->where('status', 'ล่วงเวลาพิเศษ')->count(), // OT ที่เกินเวลาปกติเข้าช่วงล่วงเวลาพิเศษ
                 'no_out' => $rows->where('status', 'ไม่ได้ลงเวลาออก')->count(),
                 'absent' => $rows->whereIn('status', ['ไม่ได้ลงเวลา'])->count(),
             ],
@@ -118,7 +122,7 @@ class DailyReport
     }
 
     /** กลุ่มงานของแต่ละคน ณ วันที่ (query เดียว) */
-    private static function departmentsOn(Collection $users, CarbonImmutable $day): array
+    public static function departmentsOn(Collection $users, CarbonImmutable $day): array
     {
         $map = $users->pluck('department_id', 'id')->all();
         DepartmentAssignment::query()
@@ -134,8 +138,8 @@ class DailyReport
         return $map;
     }
 
-    /** @return array{0:string,1:string} [ข้อความ, tone: ok|late|bad|leave|neutral|ot] */
-    public static function status(?Attendance $a, string $type, CarbonImmutable $day, CarbonImmutable $today): array
+    /** @return array{0:string,1:string} [ข้อความ, tone: ok|late|bad|absent|leave|duty|ot|special|neutral] */
+    public static function status(?Attendance $a, string $type, CarbonImmutable $day, CarbonImmutable $today, bool $flex = false): array
     {
         $past = $day->lessThan($today);
 
@@ -144,7 +148,7 @@ class DailyReport
                 return ['—', 'neutral'];
             }
 
-            return $past ? ['ไม่ได้ลงเวลา', 'bad'] : ['ยังไม่ลงเวลา', 'neutral'];
+            return $past ? ['ไม่ได้ลงเวลา', 'absent'] : ['ยังไม่ลงเวลา', 'neutral'];
         }
         if (! $a->check_in_at) {
             return ['ไม่ได้ลงเวลาเข้า', 'bad'];
@@ -153,16 +157,17 @@ class DailyReport
             return $past ? ['ไม่ได้ลงเวลาออก', 'bad'] : ['กำลังปฏิบัติงาน', 'neutral'];
         }
         if ($type === 'ot') {
-            return [$a->special_minutes ? 'ล่วงเวลาพิเศษ' : 'OT', 'ot'];
+            return $a->special_minutes ? ['ล่วงเวลาพิเศษ', 'special'] : ['OT', 'ot'];
         }
         if ($a->late_minutes) {
             return ["สาย {$a->late_minutes} นาที", 'late'];
         }
         if ($a->early_leave_minutes) {
-            return ["ออกก่อน {$a->early_leave_minutes} นาที", 'late'];
+            // เวลายืดหยุ่น: early_leave_minutes = นาทีที่ขาดจากชั่วโมงขั้นต่ำ
+            return [$flex ? "ชม. ไม่ครบ (ขาด {$a->early_leave_minutes} นาที)" : "ออกก่อน {$a->early_leave_minutes} นาที", 'late'];
         }
         $start = $day->setTimeFromTimeString($a->schedule?->start_time ?? '08:30');
 
-        return $a->check_in_at->greaterThan($start) ? ['ปกติ (ผ่อนผัน)', 'ok'] : ['ปกติ', 'ok'];
+        return ! $flex && $a->check_in_at->greaterThan($start) ? ['ปกติ (ผ่อนผัน)', 'ok'] : ['ปกติ', 'ok'];
     }
 }

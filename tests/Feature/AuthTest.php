@@ -14,7 +14,7 @@ class AuthTest extends TestCase
     public function test_public_home_and_login_pages_render(): void
     {
         $this->get('/')->assertOk()->assertInertia(fn ($p) => $p->component('Home'));
-        $this->get('/login')->assertOk()->assertInertia(fn ($p) => $p->component('Auth/Login'));
+        $this->get('/login')->assertOk()->assertInertia(fn ($p) => $p->component('Home')->where('openLogin', true));
     }
 
     public function test_password_login_is_closed_unless_enabled(): void

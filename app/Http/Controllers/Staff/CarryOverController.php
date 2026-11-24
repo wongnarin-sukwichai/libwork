@@ -26,11 +26,15 @@ class CarryOverController extends Controller
         $carryTypes = LeaveType::query()->where('carry_over', true)->pluck('id');
 
         $balances = LeaveBalance::query()
-            ->with(['user:id,prefix,first_name,last_name,start_date,employment_type_id', 'user.employmentType:id,name', 'leaveType:id,name', 'adjustments.creator:id,prefix,first_name,last_name'])
+            ->with(['user:id,prefix,first_name,last_name,start_date,employment_type_id', 'user.employmentType:id,name,sort_order', 'leaveType:id,name', 'adjustments.creator:id,prefix,first_name,last_name'])
             ->where('fiscal_year', $fy)
             ->whereIn('leave_type_id', $carryTypes)
             ->get()
-            ->sortBy(fn ($b) => $b->user?->first_name)
+            // เรียงตามประเภทบุคลากร (ลำดับในตั้งค่า) แล้วตามชื่อ · ไม่มีประเภทอยู่ท้าย
+            ->sortBy([
+                fn ($a, $b) => [$a->user?->employmentType?->sort_order ?? PHP_INT_MAX, $a->user?->employmentType?->id ?? PHP_INT_MAX] <=> [$b->user?->employmentType?->sort_order ?? PHP_INT_MAX, $b->user?->employmentType?->id ?? PHP_INT_MAX],
+                fn ($a, $b) => strcmp((string) $a->user?->first_name, (string) $b->user?->first_name),
+            ])
             ->values();
 
         $usedPrev = fn ($b) => (float) (LeaveService::used($b->user_id, $fy - 1)->get($b->leave_type_id)?->total ?? 0);
